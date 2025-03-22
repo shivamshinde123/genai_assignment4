@@ -111,7 +111,7 @@ class UNet(nn.Module):
         return out
 
 model = UNet(1, 1).to(device)
-model.load_state_dict(torch.load("diff_unet_faces.cpt", map_location=torch.device('cpu')))
+model.load_state_dict(torch.load("diff_unet_faces.cpt", map_location=torch.device(device)))
 
 betas = torch.linspace(
     1e-4,
