@@ -1,0 +1,6 @@
+myenv
+__pycache__
+*.npy
+*.cpt
+*.sh
+*.out
