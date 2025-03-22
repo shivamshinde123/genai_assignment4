@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import torch.nn as nn
@@ -169,7 +170,8 @@ def show_images(x):
         ax.imshow(x[i][0], cmap='gray')
         ax.axis('off')
     plt.tight_layout()
-    plt.savefig("collage.png")
+    os.makedirs('Images', exist_ok=True)
+    plt.savefig(os.path.join("Images", "question1_generated_images_pretrained_trained_model.png"))
     plt.show()
 
 # === 1. Unconditional Generation ===
