@@ -10,8 +10,7 @@ from age_regressor import AgeRegressorUNetDown        # Import the pretrained ag
 from question1_pretrained_model import UNet           # Import the pretrained DDPM denoiser (UNet)
 
 # === Set Diffusion Hyperparameters ===
-
-T = 1000  # Total number of diffusion steps
+T = 1600  # Total number of diffusion steps
 
 # Define a linear beta schedule: linearly increasing variance over time
 betas = torch.linspace(1e-4, 0.02, T)
@@ -73,56 +72,63 @@ def sample_posterior(x_t, eps_theta, t):
 
 # === Classifier-Guided DDPM Sampling ===
 def classifier_guided_ddpm_sampling(
-    denoiser,         # The trained DDPM denoising model (UNet)
-    regressor,        # The trained age regressor model
+    denoiser,         # Trained DDPM denoising model (UNet)
+    regressor,        # Trained age regressor model
     num_steps,        # Total number of diffusion steps (T)
-    shape,            # Shape of the sample to generate (e.g., [1, 1, 48, 48])
-    y_target,         # Target regression value to guide toward
-    guidance_scale=1.0,  # Strength of the guidance term
-    device="cuda"        # Device to run computation on
+    shape,            # Shape of the sample to generate, e.g., [1, 1, 48, 48]
+    y_target,         # Target regression value to guide toward (e.g., age)
+    guidance_scale=1.0,  # Strength of classifier guidance
+    device=device        # Device to run on (CPU or GPU)
 ):
-    # Start from pure Gaussian noise
+    # Step 1: Start with pure Gaussian noise (x_T ~ N(0, I))
     x = torch.randn(shape).to(device)
 
-    # Loop over timesteps in reverse order (T-1 to 0)
+    # Step 2: Perform reverse diffusion from t = T-1 to 0
     for t in reversed(range(num_steps)):
-        # Create tensor filled with timestep value t
+        # Create a tensor of current timestep t with shape [B]
         t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.long)
 
-        # Enable gradient tracking for x
+        # Enable gradient tracking for x (we'll use it for classifier guidance)
         x.requires_grad_(True)
 
-        # Predict noise ε_θ(x_t, t)
+        # Step 3: Predict noise ε_theta(x_t, t) from the denoiser
         eps_theta = denoiser(x, t_tensor)
 
-        # Estimate clean image x_0 from x_t and ε_θ
+        # Step 4: Estimate the denoised image x₀ using DDPM reverse formula
         x_denoised = predict_x0_from_eps(x, eps_theta, t_tensor)
+        
+        # Step 5: Re-noise x₀ at timestep t to get z_t ~ q(z_t | x₀, t)
+        alpha_bar_t = alphas_cumprod[t_tensor].view(-1, 1, 1, 1)  # Extract ᾱ_t
+        noise = torch.randn_like(x_denoised)                      # Sample fresh noise
+        z_t = torch.sqrt(alpha_bar_t) * x_denoised + torch.sqrt(1 - alpha_bar_t) * noise  # Forward process
 
-        # Predict the regressed value (e.g., age) from x_0
-        pred = regressor(x_denoised, t_tensor.float())
+        # Step 6: Predict regression target (e.g., age) from re-noised image z_t
+        pred = regressor(z_t, t_tensor.float())  # Regressor expects float timestep
 
-        # Construct target tensor of same shape as prediction
-        target = torch.full_like(pred, y_target).to(device)
+        # Step 7: Compute loss between predicted and target value
+        target = torch.full_like(pred, y_target).to(device)  # Create same-shaped tensor
+        loss = F.mse_loss(pred, target)                      # MSE loss for regression
 
-        # Compute regression loss (mean squared error)
-        loss = F.mse_loss(pred, target)
+        # Step 8: Compute gradient of loss w.r.t. x_t
+        grad = torch.autograd.grad(loss, x)[0]               # Backprop to input x_t
 
-        # Compute gradient of loss w.r.t. x
-        grad = torch.autograd.grad(loss, x)[0]
+        # Step 9: Normalize the gradient (helps with stability)
+        grad = grad / (grad.norm() + 1e-8)                   # Avoid overly large steps
 
-        # Apply gradient-based guidance to sample x
-        x = x.detach() - guidance_scale * grad
+        # Step 10: Apply the gradient-based guidance step
+        x = x.detach() - guidance_scale * grad               # Move in direction that reduces loss
 
-        # Recompute ε_θ using updated x, but without tracking gradients
-        with torch.no_grad():
-            eps_theta = denoiser(x, t_tensor)
-            x = sample_posterior(x, eps_theta, t_tensor)  # Get x_{t-1}
+        # Step 11: Recalculate ε_theta using updated x and sample x_{t-1}
+        with torch.no_grad():                                # No gradients needed here
+            eps_theta = denoiser(x, t_tensor)                # Predict noise again
+            x = sample_posterior(x, eps_theta, t_tensor)     # Sample x_{t-1} from p(x_{t-1} | x_t)
 
-    # Return final generated image (x_0)
+    # Step 12: Return final generated image x₀
     return x
 
+
 # === Plot and Save Grid of Guided Samples ===
-def plot_guided_samples(denoiser, regressor, num_steps, target_values, samples_per_target, shape, guidance_scale=1.0, device="cuda"):
+def plot_guided_samples(denoiser, regressor, num_steps, target_values, samples_per_target, shape, guidance_scale=1.0, device=device):
     denoiser.eval()      # Set denoiser to evaluation mode
     regressor.eval()     # Set regressor to evaluation mode
 
@@ -177,9 +183,9 @@ if __name__ == "__main__":
         denoiser=denoiser,                  # Pretrained DDPM model
         regressor=regressor,                # Pretrained regression model
         num_steps=1000,                     # Number of diffusion steps
-        target_values=[0.0, 0.3, 0.5, 0.7, 1.0],  # Regression targets to guide toward
-        samples_per_target=5,               # Number of samples per target
+        target_values=[18, 40, 60, 80],  # Regression targets to guide toward
+        samples_per_target=4,               # Number of samples per target
         shape=[1, 1, 48, 48],               # Shape of generated image
-        guidance_scale=1.5,                 # Strength of classifier guidance
+        guidance_scale=0.00155,                 # Strength of classifier guidance
         device=device                       # Device to run the model on
     )
