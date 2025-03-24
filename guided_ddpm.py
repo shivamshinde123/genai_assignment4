@@ -10,7 +10,7 @@ from age_regressor import AgeRegressorUNetDown        # Import the pretrained ag
 from question1_pretrained_model import UNet           # Import the pretrained DDPM denoiser (UNet)
 
 # === Set Diffusion Hyperparameters ===
-T = 1600  # Total number of diffusion steps
+T = 1300  # Total number of diffusion steps
 
 # Define a linear beta schedule: linearly increasing variance over time
 betas = torch.linspace(1e-4, 0.02, T)

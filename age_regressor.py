@@ -110,7 +110,7 @@ if __name__ == "__main__":
     faces = torch.tensor(faces, dtype=torch.float32).unsqueeze(1)  # [N, 1, 48, 48]
     ages = torch.tensor(ages, dtype=torch.float32)
 
-    T = 1600
+    T = 1300
     beta_schedule = torch.linspace(1e-4, 0.02, T)
     dataset = DiffusedAgeDataset(faces, ages, beta_schedule, T)
     loader = DataLoader(dataset, batch_size=64, shuffle=True)
