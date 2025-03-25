@@ -1,8 +1,15 @@
 import os
+import time
 import torch
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 from question1_custom_model import UNet
+
+seed = int(time.time()) % 2**32
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 
 # -----------------------
 # 1. Setup and Parameters
@@ -96,12 +103,20 @@ def denoise_from_latent(z_start, t_start, model):
 # -----------------------
 
 # Define 4 different timesteps to explore
-timesteps = [50, 100, 200, 400]
+timesteps = [100, 300, 500, 700]
 
 # Select 5 random pairs of images
 num_pairs = 5
-rand_indices = torch.randperm(len(faces))[:2 * num_pairs]
-pairs = [(faces[i], faces[i+1]) for i in range(0, len(rand_indices), 2)]
+all_indices = list(range(len(faces)))
+random.shuffle(all_indices)  # Shuffle in-place using Python's random module
+rand_indices = all_indices[:2 * num_pairs]
+
+# Create 5 random, non-overlapping pairs
+pairs = []
+for i in range(0, len(rand_indices), 2):
+    idx1 = rand_indices[i]
+    idx2 = rand_indices[i + 1]
+    pairs.append((faces[idx1], faces[idx2]))
 
 # Container for all collage rows
 collage_rows = []
