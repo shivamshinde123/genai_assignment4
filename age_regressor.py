@@ -80,7 +80,7 @@ class DiffusedAgeDataset(Dataset):
 def train_regressor(model, dataloader, epochs=10):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
     loss_fn = nn.MSELoss()
 
     for epoch in range(epochs):
@@ -116,4 +116,4 @@ if __name__ == "__main__":
     loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
     model = AgeRegressorUNetDown()
-    train_regressor(model, loader, epochs=10)
+    train_regressor(model, loader, epochs=50)

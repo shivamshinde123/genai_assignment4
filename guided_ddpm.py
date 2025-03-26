@@ -184,7 +184,7 @@ if __name__ == "__main__":
         regressor=regressor,                # Pretrained regression model
         num_steps=1000,                     # Number of diffusion steps
         target_values=[18, 40, 60, 80],  # Regression targets to guide toward
-        samples_per_target=4,               # Number of samples per target
+        samples_per_target=10,               # Number of samples per target
         shape=[1, 1, 48, 48],               # Shape of generated image
         guidance_scale=0.00155,                 # Strength of classifier guidance
         device=device                       # Device to run the model on
